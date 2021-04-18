@@ -8,9 +8,55 @@
 import SwiftUI
 
 struct ContentView: View {
+    @Environment(\.managedObjectContext) var moc
+    @FetchRequest(entity: Book.entity(), sortDescriptors: [
+        NSSortDescriptor(keyPath: \Book.title, ascending: true),
+        NSSortDescriptor(keyPath: \Book.author, ascending: true)
+    ])
+    var books: FetchedResults<Book>
+
+    @State private var showingAddScreen = false
+    
     var body: some View {
-        Text("Hello, world!")
-            .padding()
+        NavigationView {
+            List {
+                ForEach(books, id: \.self) { book in
+                    NavigationLink(destination: DetailView(book: book)) {
+                        EmojiRatingView(rating: book.rating)
+                            .font(.largeTitle)
+
+                        VStack(alignment: .leading) {
+                            Text(book.title ?? "Unknown Title")
+                                .font(.headline)
+                            Text(book.author ?? "Unknown Author")
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                }
+                .onDelete(perform: { indexSet in
+                    deleteBooks(at: indexSet)
+                })
+            }
+                .navigationBarTitle("BookWorm")
+            .navigationBarItems(leading: EditButton(), trailing:
+                                        Button(action: {
+                                            self.showingAddScreen.toggle()
+                                        }, label: {
+                                            Image(systemName: "plus")
+                                        }))
+                .sheet(isPresented: $showingAddScreen, content: {
+                    AddBookView().environment(\.managedObjectContext, self.moc)
+                })
+        }
+    }
+    
+    func deleteBooks(at offsets: IndexSet) {
+        for offset in offsets {
+            let book = books[offset]
+            moc.delete(book)
+        }
+        
+        try? moc.save()
     }
 }
 
@@ -19,3 +65,4 @@ struct ContentView_Previews: PreviewProvider {
         ContentView()
     }
 }
+
